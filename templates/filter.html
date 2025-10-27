@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Students filter UI</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; padding: 20px; }
+    button { margin: 4px; }
+    #results { margin-top: 20px; white-space: pre-wrap; background:#f8f8f8; padding:10px; border:1px solid #ddd }
+    .controls { margin-bottom: 8px }
+    label { margin-right: 6px }
+  </style>
+</head>
+<body>
+  <h2>Students filter UI</h2>
+  <p>Use the buttons or inputs to request filtered student lists from the Flask API.</p>
+
+    <div class="controls">
+    <button id="btn-all">All</button>
+    <button id="btn-city-kosice">City = Istanbul</button>
+    <button id="btn-male">Gender = Male</button>
+  </div>
+
+  <div class="controls">
+    <label for="city">City:</label>
+    <input id="city" placeholder="e.g. Madrid" />
+    <label for="gender">Gender:</label>
+    <input id="gender" placeholder="Male" />
+    <label for="name">Name contains:</label>
+    <input id="name" placeholder="substring" />
+    <button id="btn-custom">Apply</button>
+  </div>
+
+  <div id="results">Results will appear here...</div>
+
+  <script>
+    const results = document.getElementById('results');
+    const base = location.origin; // uses same host/port
+
+    async function fetchStudents(query=''){
+      results.textContent = 'Loading...';
+      try{
+        const res = await fetch(base + '/Students' + (query ? ('?' + query) : ''));
+        if(!res.ok){
+          const err = await res.json().catch(()=>({message:res.statusText}));
+          results.textContent = JSON.stringify(err, null, 2);
+          return;
+        }
+        const data = await res.json();
+        results.textContent = JSON.stringify(data, null, 2);
+      }catch(e){
+        results.textContent = 'Fetch error: ' + e;
+      }
+    }
+
+  document.getElementById('btn-all').addEventListener('click', ()=>fetchStudents());
+  document.getElementById('btn-city-kosice').addEventListener('click', ()=>fetchStudents('City=Istanbul'));
+  document.getElementById('btn-male').addEventListener('click', ()=>fetchStudents('Gender=Male'));
+
+    document.getElementById('btn-custom').addEventListener('click', ()=>{
+      const city = document.getElementById('city').value.trim();
+      const gender = document.getElementById('gender').value.trim();
+      const name = document.getElementById('name').value.trim();
+      const parts = [];
+      if(city) parts.push('City=' + encodeURIComponent(city));
+      if(gender) parts.push('Gender=' + encodeURIComponent(gender));
+      if(name) parts.push('Name=' + encodeURIComponent(name));
+      fetchStudents(parts.join('&'));
+    });
+
+    document.getElementById('btn-year').addEventListener('click', ()=>{
+      const min = document.getElementById('minYear').value.trim();
+      const max = document.getElementById('maxYear').value.trim();
+      const parts = [];
+      if(min) parts.push('minYear=' + encodeURIComponent(min));
+      if(max) parts.push('maxYear=' + encodeURIComponent(max));
+      fetchStudents(parts.join('&'));
+    });
+
+    // load initial data
+    fetchStudents();
+
+    document.getElementById('btn-set-female').addEventListener('click', async ()=>{
+      // build query from inputs
+      const city = document.getElementById('city').value.trim();
+      const name = document.getElementById('name').value.trim();
+      const min = document.getElementById('minYear').value.trim();
+      const parts = [];
+      if(city) parts.push('City=' + encodeURIComponent(city));
+      if(name) parts.push('Name=' + encodeURIComponent(name));
+      if(min) parts.push('minYear=' + encodeURIComponent(min));
+      const query = parts.join('&');
+      results.textContent = 'Applying update...';
+      try{
+        const res = await fetch(base + '/Students' + (query ? ('?' + query) : ''), {method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({Gender:'Female'})});
+        const json = await res.json();
+        results.textContent = JSON.stringify(json, null, 2);
+        // refresh list
+        fetchStudents(query);
+      }catch(e){ results.textContent = 'Error: ' + e }
+    });
+  </script>
+</body>
+</html>
